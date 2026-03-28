@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	duoplus "duoplus-go-sdk"
-	"duoplus-go-sdk/clouddisk"
-	"duoplus-go-sdk/common"
-	"duoplus-go-sdk/group"
+	duoplus "github.com/difyz9/duoplus-go-sdk"
+	"github.com/difyz9/duoplus-go-sdk/clouddisk"
+	"github.com/difyz9/duoplus-go-sdk/common"
+	"github.com/difyz9/duoplus-go-sdk/group"
 )
 
 func main() {

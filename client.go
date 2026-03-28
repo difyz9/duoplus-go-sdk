@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"duoplus-go-sdk/app"
-	"duoplus-go-sdk/automation"
-	"duoplus-go-sdk/clouddisk"
-	"duoplus-go-sdk/cloudnumber"
-	"duoplus-go-sdk/cloudphone"
-	"duoplus-go-sdk/group"
-	"duoplus-go-sdk/internal/clientcore"
-	"duoplus-go-sdk/proxy"
-	"duoplus-go-sdk/subscriptionstartup"
+	"github.com/difyz9/duoplus-go-sdk/app"
+	"github.com/difyz9/duoplus-go-sdk/automation"
+	"github.com/difyz9/duoplus-go-sdk/clouddisk"
+	"github.com/difyz9/duoplus-go-sdk/cloudnumber"
+	"github.com/difyz9/duoplus-go-sdk/cloudphone"
+	"github.com/difyz9/duoplus-go-sdk/group"
+	"github.com/difyz9/duoplus-go-sdk/internal/clientcore"
+	"github.com/difyz9/duoplus-go-sdk/proxy"
+	"github.com/difyz9/duoplus-go-sdk/subscriptionstartup"
 )
 
 const (

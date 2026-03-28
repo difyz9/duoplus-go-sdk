@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"duoplus-go-sdk/common"
+	"github.com/difyz9/duoplus-go-sdk/common"
 )
 
 func TestTextUnmarshalJSON(t *testing.T) {

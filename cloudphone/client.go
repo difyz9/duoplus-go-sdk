@@ -3,8 +3,8 @@ package cloudphone
 import (
 	"context"
 
-	"duoplus-go-sdk/common"
-	"duoplus-go-sdk/internal/clientcore"
+	"github.com/difyz9/duoplus-go-sdk/common"
+	"github.com/difyz9/duoplus-go-sdk/internal/clientcore"
 )
 
 const (

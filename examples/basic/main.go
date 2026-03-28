@@ -6,9 +6,9 @@ import (
 	"log"
 	"os"
 
-	duoplus "duoplus-go-sdk"
-	"duoplus-go-sdk/cloudphone"
-	"duoplus-go-sdk/common"
+	duoplus "github.com/difyz9/duoplus-go-sdk"
+	"github.com/difyz9/duoplus-go-sdk/cloudphone"
+	"github.com/difyz9/duoplus-go-sdk/common"
 )
 
 func main() {

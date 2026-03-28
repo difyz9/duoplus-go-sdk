@@ -2,8 +2,6 @@
 
 基于 DuoPlus OpenAPI 的非官方 Golang SDK。
 
-当前版本已按模块拆分到独立 package 目录，根包只负责客户端初始化与模块入口，避免单文件过大，并使业务代码按模块组织更清晰。
-
 ## 功能概览
 
 已覆盖 DuoPlus API 文档中公开可识别的 OpenAPI 页面：
@@ -31,7 +29,7 @@
 ## 项目结构
 
 ```text
-duoplus-go-sdk/
+github.com/difyz9/duoplus-go-sdk/
 ├── app/                    # 应用管理模块
 ├── automation/             # 自动化模块
 ├── clouddisk/              # 云盘管理模块
@@ -50,10 +48,8 @@ duoplus-go-sdk/
 ## 安装
 
 ```bash
-go get duoplus-go-sdk
+go get github.com/difyz9/duoplus-go-sdk
 ```
-
-如果你会把仓库发布到 Git 服务，请把 [go.mod](/Users/apple/opt/difyz_202605/duoplus-go-sdk/go.mod) 里的模块名改成真实仓库地址。
 
 ## 设计说明
 
@@ -75,9 +71,9 @@ import (
 	"fmt"
 	"log"
 
-	duoplus "duoplus-go-sdk"
-	"duoplus-go-sdk/cloudphone"
-	"duoplus-go-sdk/common"
+	duoplus "github.com/difyz9/duoplus-go-sdk"
+	"github.com/difyz9/duoplus-go-sdk/cloudphone"
+	"github.com/difyz9/duoplus-go-sdk/common"
 )
 
 func main() {
@@ -350,6 +346,9 @@ fmt.Println(order.OrderID)
 - `examples/basic`: 基础云手机列表示例
 - `examples/automation`: 自动化模板列表示例
 - `examples/group-disk`: 云手机分组与云盘示例
+- `examples/power-on-wait`: 开机后轮询状态直到完成的真实业务脚本示例
+- `examples/power-on-adb-check`: 开机后执行 ADB 命令并校验输出的真实业务脚本示例
+- `examples/real-workflow`: 基于真实资源自动选择云手机和云盘文件的完整业务流程示例
 
 运行方式：
 
@@ -359,6 +358,99 @@ go run ./examples/basic
 go run ./examples/automation
 go run ./examples/group-disk
 ```
+
+### 真实业务脚本示例
+
+#### 示例 1：开机后轮询直到完成
+
+默认只做 dry-run，不会真的开机：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+go run ./examples/power-on-wait
+```
+
+执行真实开机并轮询状态：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+export DUOPLUS_EXECUTE=1
+go run ./examples/power-on-wait
+```
+
+可选地指定目标云手机：
+
+```bash
+export DUOPLUS_TARGET_IMAGE_ID=your-image-id
+```
+
+#### 示例 2：开机后执行 ADB 命令并校验结果
+
+默认也是 dry-run：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+go run ./examples/power-on-adb-check
+```
+
+执行真实流程：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+export DUOPLUS_EXECUTE=1
+go run ./examples/power-on-adb-check
+```
+
+可选环境变量：
+
+```bash
+export DUOPLUS_TARGET_IMAGE_ID=your-image-id
+export DUOPLUS_ADB_COMMAND='getprop ro.product.model'
+export DUOPLUS_EXPECT_SUBSTRING='Pixel'
+```
+
+这个脚本会：
+
+- 自动选择一台云手机，优先选择关机中的机器
+- 如有需要先开机，并轮询到开机完成
+- 执行一条 ADB shell 命令
+- 对返回内容做简单校验，适合接业务前置健康检查
+
+#### 示例 3：更贴近业务的完整流程
+
+这个脚本会：
+
+- 自动选择一台云手机
+- 自动选择云盘中的一个文件
+- 如果云手机处于关机状态，则先开机并轮询到完成
+- 再把文件推送到云机的目标目录
+
+默认也是 dry-run：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+go run ./examples/real-workflow
+```
+
+执行真实流程：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+export DUOPLUS_EXECUTE=1
+go run ./examples/real-workflow
+```
+
+可选地自定义推送目录：
+
+```bash
+export DUOPLUS_DEST_DIR=/sdcard/Download
+```
+
+说明：
+
+- 真实执行可能触发云手机开机计费
+- 脚本默认 dry-run，就是为了避免误操作
+- 我当前测试到的真实资源状态是：有 2 台已关机云手机、1 个云盘文件、0 个云手机分组，因此这个示例会优先选取关机云机和首个云盘文件
 
 ## 错误处理
 
