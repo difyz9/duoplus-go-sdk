@@ -2,6 +2,12 @@
 
 基于 DuoPlus OpenAPI 的非官方 Golang SDK。
 
+适合这几类场景：
+
+- 在 Go 服务中直接调用 DuoPlus OpenAPI
+- 编写云手机运维脚本、批量任务和内部工具
+- 将代理、云盘、自动化能力接入你自己的业务系统
+
 ## 功能概览
 
 已覆盖 DuoPlus API 文档中公开可识别的 OpenAPI 页面：
@@ -47,9 +53,48 @@ github.com/difyz9/duoplus-go-sdk/
 
 ## 安装
 
+要求：
+
+- Go 1.22+
+
 ```bash
 go get github.com/difyz9/duoplus-go-sdk
 ```
+
+建议在业务项目中显式安装版本：
+
+```bash
+go get github.com/difyz9/duoplus-go-sdk@latest
+```
+
+如果你要在生产环境长期使用，建议固定 tag，而不是始终跟随最新提交。
+
+## API 约定
+
+SDK 按 DuoPlus 当前公开文档的通用约定实现：
+
+- 所有公开接口统一使用 `POST`
+- 请求体为 `application/json`
+- 认证头为 `DuoPlus-API-Key`
+- 语言头为 `Lang`
+- 默认请求域名为 `https://openapi.duoplus.cn`
+- 国际环境可切换为 `https://openapi.duoplus.net`
+- 默认最小请求间隔为 1 秒，用于遵守文档中的 QPS 限制
+
+响应通常遵循这样的业务结构：
+
+```json
+{
+	"code": 0,
+	"data": {},
+	"message": "success"
+}
+```
+
+其中：
+
+- `code = 0` 表示业务成功
+- 非 0 会被 SDK 尽量解析为 `*duoplus.APIError`
 
 ## 设计说明
 
@@ -61,6 +106,24 @@ go get github.com/difyz9/duoplus-go-sdk
 - 业务错误返回 `*duoplus.APIError`
 - 通用类型集中放在 `common` 包，模块请求/响应类型放在对应子包中
 
+## 模块导入说明
+
+推荐按这个模式导入：
+
+```go
+import (
+	duoplus "github.com/difyz9/duoplus-go-sdk"
+	"github.com/difyz9/duoplus-go-sdk/cloudphone"
+	"github.com/difyz9/duoplus-go-sdk/common"
+)
+```
+
+约定如下：
+
+- 根包 `duoplus` 用来创建客户端和传入全局选项
+- 子包如 `cloudphone`、`proxy`、`automation` 负责各模块的请求与响应类型
+- `common` 放通用分页、消息响应和公共结构
+
 ## 快速开始
 
 ```go
@@ -70,6 +133,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	duoplus "github.com/difyz9/duoplus-go-sdk"
 	"github.com/difyz9/duoplus-go-sdk/cloudphone"
@@ -77,8 +141,13 @@ import (
 )
 
 func main() {
+	apiKey := os.Getenv("DUOPLUS_API_KEY")
+	if apiKey == "" {
+		log.Fatal("DUOPLUS_API_KEY is required")
+	}
+
 	client, err := duoplus.NewClient(
-		"your-api-key",
+		apiKey,
 		duoplus.WithBaseURL(duoplus.DefaultBaseURL),
 		duoplus.WithLanguage("zh"),
 	)
@@ -99,6 +168,13 @@ func main() {
 }
 ```
 
+直接运行现成示例：
+
+```bash
+export DUOPLUS_API_KEY=your-api-key
+go run ./examples/basic
+```
+
 ## 如何使用
 
 ### 1. 初始化客户端
@@ -117,6 +193,16 @@ client, err := duoplus.NewClient(
 - `duoplus.WithLanguage(...)`
 - `duoplus.WithHTTPClient(...)`
 - `duoplus.WithMinInterval(...)`
+
+国际环境初始化示例：
+
+```go
+client, err := duoplus.NewClient(
+	apiKey,
+	duoplus.WithBaseURL(duoplus.DefaultIntlBaseURL),
+	duoplus.WithLanguage("en"),
+)
+```
 
 ### 2. 从模块入口访问功能
 
@@ -143,6 +229,50 @@ client, err := duoplus.NewClient(
 - `common.PaginationRequest`
 - `common.Pagination`
 - `common.MessageResponse`
+
+### 4. 区分只读接口和副作用接口
+
+下面这些调用会产生真实业务影响，接入业务时应单独审计：
+
+- 开机、关机、重启
+- 推送文件到云机
+- 应用安装、卸载、启动、停止
+- 自动化任务创建、修改、重新执行
+- 购买、续费
+
+因此仓库中的业务脚本示例默认都是 dry-run，只有设置 `DUOPLUS_EXECUTE=1` 才会执行真实变更。
+
+## 常见工作流
+
+### 工作流 1：列出云手机
+
+1. 初始化客户端
+2. 调用 `client.CloudPhones.List(...)`
+3. 遍历 `resp.List`
+
+### 工作流 2：开机并等待完成
+
+1. 调用 `client.CloudPhones.PowerOn(...)`
+2. 轮询 `client.CloudPhones.Status(...)`
+3. 等待目标状态变为开机完成
+
+参考示例：`examples/power-on-wait`
+
+### 工作流 3：执行健康检查型 ADB 命令
+
+1. 确保目标云机已开机
+2. 调用 `client.CloudPhones.Command(...)`
+3. 对返回内容做关键词校验
+
+参考示例：`examples/power-on-adb-check`
+
+### 工作流 4：推送云盘文件到云机
+
+1. 调用 `client.CloudDisk.List(...)` 找到文件
+2. 确认云机可用
+3. 调用 `client.CloudDisk.PushFiles(...)`
+
+参考示例：`examples/real-workflow`
 
 ## 功能列表
 
@@ -359,6 +489,17 @@ go run ./examples/automation
 go run ./examples/group-disk
 ```
 
+### 示例环境变量
+
+| 变量名 | 用途 | 适用示例 |
+| --- | --- | --- |
+| `DUOPLUS_API_KEY` | DuoPlus API Key | 全部示例 |
+| `DUOPLUS_EXECUTE` | 设置为 `1` 时执行真实变更 | `power-on-wait` `power-on-adb-check` `real-workflow` |
+| `DUOPLUS_TARGET_IMAGE_ID` | 指定目标云手机 ID | `power-on-wait` `power-on-adb-check` |
+| `DUOPLUS_ADB_COMMAND` | 自定义 ADB shell 命令 | `power-on-adb-check` |
+| `DUOPLUS_EXPECT_SUBSTRING` | 校验 ADB 输出包含指定文本 | `power-on-adb-check` |
+| `DUOPLUS_DEST_DIR` | 自定义推送目录 | `real-workflow` |
+
 ### 真实业务脚本示例
 
 #### 示例 1：开机后轮询直到完成
@@ -468,3 +609,24 @@ if err != nil {
 
 _ = resp
 ```
+
+常见处理建议：
+
+- 先用 `errors.As(err, &apiErr)` 判断是否为业务错误
+- 查询型接口可以做有限重试，但要尊重 1 秒限流约束
+- 对开机、推送、购买类接口，建议记录目标 ID 和返回结果，便于排查和审计
+
+## 发布建议
+
+如果你准备长期对外提供这个 SDK，建议保持下面的发布习惯：
+
+- 使用语义化版本号，例如 `v0.1.0`、`v0.2.0`
+- 发生 breaking change 时及时升级主版本或至少在 README 标明
+- 新增 API 时同步更新 README 的“功能列表”和“示例目录”
+- 保持 `examples/` 中示例可运行，避免文档和实现漂移
+
+## 说明
+
+- 当前 SDK 是依据 DuoPlus 公开文档封装的非官方实现
+- 若 DuoPlus 后续调整字段、路径或业务码含义，SDK 也需要同步更新
+- 在生产环境接入前，建议先用测试资源验证关键工作流
