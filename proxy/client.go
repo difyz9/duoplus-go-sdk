@@ -1,0 +1,132 @@
+package proxy
+
+import (
+	"context"
+
+	"duoplus-go-sdk/common"
+	"duoplus-go-sdk/internal/clientcore"
+)
+
+const (
+	pathList    = "/api/v1/proxy/list"
+	pathAdd     = "/api/v1/proxy/add"
+	pathDelete  = "/api/v1/proxy/delete"
+	pathRefresh = "/api/v1/proxy/refresh"
+	pathUpdate  = "/api/v1/proxy/update"
+)
+
+type Client struct {
+	core *clientcore.Client
+}
+
+func New(core *clientcore.Client) *Client {
+	return &Client{core: core}
+}
+
+type ListRequest struct {
+	common.PaginationRequest
+}
+
+type Item struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Host string `json:"host"`
+	Port string `json:"port"`
+	User string `json:"user"`
+	Area string `json:"area"`
+}
+
+type ListResponse struct {
+	List []Item `json:"list"`
+	common.Pagination
+}
+
+type AddRequest struct {
+	ProxyList     []Input `json:"proxy_list"`
+	IPScanChannel string  `json:"ip_scan_channel,omitempty"`
+}
+
+type Input struct {
+	Protocol string `json:"protocol"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
+	Name     string `json:"name,omitempty"`
+}
+
+type AddSuccess struct {
+	Index int    `json:"index"`
+	ID    string `json:"id"`
+}
+
+type AddFailure struct {
+	Index   int    `json:"index"`
+	Message string `json:"message"`
+}
+
+type AddResponse struct {
+	Success []AddSuccess `json:"success"`
+	Fail    []AddFailure `json:"fail"`
+}
+
+type IDsRequest struct {
+	IDs []string `json:"ids"`
+}
+
+type UpdateRequest struct {
+	ID            string `json:"id"`
+	Host          string `json:"host,omitempty"`
+	Port          int    `json:"port,omitempty"`
+	User          string `json:"user,omitempty"`
+	Password      string `json:"password,omitempty"`
+	Name          string `json:"name,omitempty"`
+	IPScanChannel string `json:"ip_scan_channel,omitempty"`
+	RefreshURL    string `json:"refresh_url,omitempty"`
+	ProxyURL      string `json:"proxy_url,omitempty"`
+}
+
+type UpdateResponse struct {
+	Message string `json:"message"`
+	Result  []any  `json:"result"`
+}
+
+func (c *Client) List(ctx context.Context, req ListRequest) (*ListResponse, error) {
+	var resp ListResponse
+	if err := c.core.Do(ctx, pathList, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *Client) Add(ctx context.Context, req AddRequest) (*AddResponse, error) {
+	var resp AddResponse
+	if err := c.core.Do(ctx, pathAdd, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *Client) Delete(ctx context.Context, ids []string) (*common.IDsOperationResponse, error) {
+	var resp common.IDsOperationResponse
+	if err := c.core.Do(ctx, pathDelete, IDsRequest{IDs: ids}, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *Client) RefreshURLs(ctx context.Context, ids []string) (*common.IDsOperationResponse, error) {
+	var resp common.IDsOperationResponse
+	if err := c.core.Do(ctx, pathRefresh, IDsRequest{IDs: ids}, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+func (c *Client) Update(ctx context.Context, req UpdateRequest) (*UpdateResponse, error) {
+	var resp UpdateResponse
+	if err := c.core.Do(ctx, pathUpdate, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}

@@ -1,39 +1,52 @@
-package duoplus
+package automation
 
-import "context"
+import (
+	"context"
+
+	"duoplus-go-sdk/common"
+	"duoplus-go-sdk/internal/clientcore"
+)
 
 const (
-	pathAutomationUserTemplateList     = "/api/v1/automation/userTemplateList"
-	pathAutomationOfficialTemplateList = "/api/v1/automation/officialTemplateList"
-	pathAutomationAddTask              = "/api/v1/automation/addTask"
-	pathAutomationAddPlan              = "/api/v1/automation/addPlan"
-	pathAutomationPlanList             = "/api/v1/automation/planList"
-	pathAutomationSavePlan             = "/api/v1/automation/savePlan"
-	pathAutomationSetPlanStatus        = "/api/v1/automation/setPlanStatus"
-	pathAutomationDeletePlan           = "/api/v1/automation/deletePlan"
-	pathAutomationTaskList             = "/api/v1/automation/taskList"
-	pathAutomationTaskLogList          = "/api/v1/automation/taskLogList"
-	pathAutomationUpdateTaskTime       = "/api/v1/automation/updateTaskTime"
-	pathAutomationSetTaskStatus        = "/api/v1/automation/setTaskStatus"
+	pathUserTemplateList     = "/api/v1/automation/userTemplateList"
+	pathOfficialTemplateList = "/api/v1/automation/officialTemplateList"
+	pathAddTask              = "/api/v1/automation/addTask"
+	pathAddPlan              = "/api/v1/automation/addPlan"
+	pathPlanList             = "/api/v1/automation/planList"
+	pathSavePlan             = "/api/v1/automation/savePlan"
+	pathSetPlanStatus        = "/api/v1/automation/setPlanStatus"
+	pathDeletePlan           = "/api/v1/automation/deletePlan"
+	pathTaskList             = "/api/v1/automation/taskList"
+	pathTaskLogList          = "/api/v1/automation/taskLogList"
+	pathUpdateTaskTime       = "/api/v1/automation/updateTaskTime"
+	pathSetTaskStatus        = "/api/v1/automation/setTaskStatus"
 )
+
+type Client struct {
+	core *clientcore.Client
+}
+
+func New(core *clientcore.Client) *Client {
+	return &Client{core: core}
+}
 
 type TemplateListRequest struct {
 	Name string `json:"name,omitempty"`
-	PaginationRequest
+	common.PaginationRequest
 }
 
-type AutomationTemplate struct {
+type Template struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Desc string `json:"desc"`
 }
 
 type TemplateListResponse struct {
-	List []AutomationTemplate `json:"list"`
-	Pagination
+	List []Template `json:"list"`
+	common.Pagination
 }
 
-type AutomationConfigValue struct {
+type ConfigValue struct {
 	Key      string `json:"key"`
 	Value    any    `json:"value"`
 	Type     string `json:"type"`
@@ -41,30 +54,26 @@ type AutomationConfigValue struct {
 }
 
 type TaskImage struct {
-	ImageID        string                           `json:"image_id"`
-	Config         map[string]AutomationConfigValue `json:"config,omitempty"`
-	IssueAt        string                           `json:"issue_at,omitempty"`
-	StartAt        string                           `json:"start_at,omitempty"`
-	EndAt          string                           `json:"end_at,omitempty"`
-	ExecuteType    int                              `json:"execute_type,omitempty"`
-	GapTime        int                              `json:"gap_time,omitempty"`
-	ExecuteTime    string                           `json:"execute_time,omitempty"`
-	ExecuteEndTime string                           `json:"execute_end_time,omitempty"`
-	Mode           int                              `json:"mode,omitempty"`
-	Weeks          []string                         `json:"weeks,omitempty"`
-	Days           []string                         `json:"days,omitempty"`
+	ImageID        string                 `json:"image_id"`
+	Config         map[string]ConfigValue `json:"config,omitempty"`
+	IssueAt        string                 `json:"issue_at,omitempty"`
+	StartAt        string                 `json:"start_at,omitempty"`
+	EndAt          string                 `json:"end_at,omitempty"`
+	ExecuteType    int                    `json:"execute_type,omitempty"`
+	GapTime        int                    `json:"gap_time,omitempty"`
+	ExecuteTime    string                 `json:"execute_time,omitempty"`
+	ExecuteEndTime string                 `json:"execute_end_time,omitempty"`
+	Mode           int                    `json:"mode,omitempty"`
+	Weeks          []string               `json:"weeks,omitempty"`
+	Days           []string               `json:"days,omitempty"`
 }
 
-type CreateAutomationTaskRequest struct {
+type CreateTaskRequest struct {
 	TemplateID   string      `json:"template_id"`
 	TemplateType int         `json:"template_type"`
 	Name         string      `json:"name"`
 	Remark       string      `json:"remark,omitempty"`
 	Images       []TaskImage `json:"images"`
-}
-
-type IDResponse struct {
-	ID string `json:"id"`
 }
 
 type PlanListRequest struct {
@@ -73,10 +82,10 @@ type PlanListRequest struct {
 	Status       []int  `json:"status,omitempty"`
 	TemplateType []int  `json:"template_type,omitempty"`
 	Remark       string `json:"remark,omitempty"`
-	PaginationRequest
+	common.PaginationRequest
 }
 
-type AutomationPlan struct {
+type Plan struct {
 	ID           string `json:"id"`
 	Name         string `json:"name"`
 	Remark       string `json:"remark"`
@@ -86,8 +95,8 @@ type AutomationPlan struct {
 }
 
 type PlanListResponse struct {
-	List []AutomationPlan `json:"list"`
-	Pagination
+	List []Plan `json:"list"`
+	common.Pagination
 }
 
 type SavePlanRequest struct {
@@ -119,10 +128,10 @@ type TaskListRequest struct {
 	ExecutionAtEnd   string `json:"execution_at_end,omitempty"`
 	SortBy           string `json:"sort_by,omitempty"`
 	Order            string `json:"order,omitempty"`
-	PaginationRequest
+	common.PaginationRequest
 }
 
-type AutomationTask struct {
+type Task struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
 	TaskTypeName  string `json:"task_type_name"`
@@ -139,8 +148,8 @@ type AutomationTask struct {
 }
 
 type TaskListResponse struct {
-	List []AutomationTask `json:"list"`
-	Pagination
+	List []Task `json:"list"`
+	common.Pagination
 }
 
 type TaskLogListRequest struct {
@@ -181,7 +190,7 @@ type SetTaskStatusRequest struct {
 
 func (c *Client) ListUserTemplates(ctx context.Context, req TemplateListRequest) (*TemplateListResponse, error) {
 	var resp TemplateListResponse
-	if err := c.do(ctx, pathAutomationUserTemplateList, req, &resp); err != nil {
+	if err := c.core.Do(ctx, pathUserTemplateList, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -189,87 +198,87 @@ func (c *Client) ListUserTemplates(ctx context.Context, req TemplateListRequest)
 
 func (c *Client) ListOfficialTemplates(ctx context.Context, req TemplateListRequest) (*TemplateListResponse, error) {
 	var resp TemplateListResponse
-	if err := c.do(ctx, pathAutomationOfficialTemplateList, req, &resp); err != nil {
+	if err := c.core.Do(ctx, pathOfficialTemplateList, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) CreateAutomationTask(ctx context.Context, req CreateAutomationTaskRequest) (*MessageResponse, error) {
-	var resp MessageResponse
-	if err := c.do(ctx, pathAutomationAddTask, req, &resp); err != nil {
+func (c *Client) CreateTask(ctx context.Context, req CreateTaskRequest) (*common.MessageResponse, error) {
+	var resp common.MessageResponse
+	if err := c.core.Do(ctx, pathAddTask, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) CreateAutomationPlan(ctx context.Context, req CreateAutomationTaskRequest) (*IDResponse, error) {
-	var resp IDResponse
-	if err := c.do(ctx, pathAutomationAddPlan, req, &resp); err != nil {
+func (c *Client) CreatePlan(ctx context.Context, req CreateTaskRequest) (*common.IDResponse, error) {
+	var resp common.IDResponse
+	if err := c.core.Do(ctx, pathAddPlan, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListAutomationPlans(ctx context.Context, req PlanListRequest) (*PlanListResponse, error) {
+func (c *Client) ListPlans(ctx context.Context, req PlanListRequest) (*PlanListResponse, error) {
 	var resp PlanListResponse
-	if err := c.do(ctx, pathAutomationPlanList, req, &resp); err != nil {
+	if err := c.core.Do(ctx, pathPlanList, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) SaveAutomationPlan(ctx context.Context, req SavePlanRequest) (*IDResponse, error) {
-	var resp IDResponse
-	if err := c.do(ctx, pathAutomationSavePlan, req, &resp); err != nil {
+func (c *Client) SavePlan(ctx context.Context, req SavePlanRequest) (*common.IDResponse, error) {
+	var resp common.IDResponse
+	if err := c.core.Do(ctx, pathSavePlan, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) SetAutomationPlanStatus(ctx context.Context, req SetPlanStatusRequest) (*IDResponse, error) {
-	var resp IDResponse
-	if err := c.do(ctx, pathAutomationSetPlanStatus, req, &resp); err != nil {
+func (c *Client) SetPlanStatus(ctx context.Context, req SetPlanStatusRequest) (*common.IDResponse, error) {
+	var resp common.IDResponse
+	if err := c.core.Do(ctx, pathSetPlanStatus, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) DeleteAutomationPlan(ctx context.Context, id string) (*MessageResponse, error) {
-	var resp MessageResponse
-	if err := c.do(ctx, pathAutomationDeletePlan, DeletePlanRequest{ID: id}, &resp); err != nil {
+func (c *Client) DeletePlan(ctx context.Context, id string) (*common.MessageResponse, error) {
+	var resp common.MessageResponse
+	if err := c.core.Do(ctx, pathDeletePlan, DeletePlanRequest{ID: id}, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListAutomationTasks(ctx context.Context, req TaskListRequest) (*TaskListResponse, error) {
+func (c *Client) ListTasks(ctx context.Context, req TaskListRequest) (*TaskListResponse, error) {
 	var resp TaskListResponse
-	if err := c.do(ctx, pathAutomationTaskList, req, &resp); err != nil {
+	if err := c.core.Do(ctx, pathTaskList, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) ListAutomationTaskLogs(ctx context.Context, req TaskLogListRequest) (*TaskLogListResponse, error) {
+func (c *Client) ListTaskLogs(ctx context.Context, req TaskLogListRequest) (*TaskLogListResponse, error) {
 	var resp TaskLogListResponse
-	if err := c.do(ctx, pathAutomationTaskLogList, req, &resp); err != nil {
+	if err := c.core.Do(ctx, pathTaskLogList, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) UpdateAutomationTaskTime(ctx context.Context, req UpdateTaskTimeRequest) (*MessageResponse, error) {
-	var resp MessageResponse
-	if err := c.do(ctx, pathAutomationUpdateTaskTime, req, &resp); err != nil {
+func (c *Client) UpdateTaskTime(ctx context.Context, req UpdateTaskTimeRequest) (*common.MessageResponse, error) {
+	var resp common.MessageResponse
+	if err := c.core.Do(ctx, pathUpdateTaskTime, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-func (c *Client) SetAutomationTaskStatus(ctx context.Context, req SetTaskStatusRequest) (*OperationResult, error) {
-	var resp OperationResult
-	if err := c.do(ctx, pathAutomationSetTaskStatus, req, &resp); err != nil {
+func (c *Client) SetTaskStatus(ctx context.Context, req SetTaskStatusRequest) (*common.OperationResult, error) {
+	var resp common.OperationResult
+	if err := c.core.Do(ctx, pathSetTaskStatus, req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil

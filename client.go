@@ -1,79 +1,50 @@
 package duoplus
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
+
+	"duoplus-go-sdk/app"
+	"duoplus-go-sdk/automation"
+	"duoplus-go-sdk/clouddisk"
+	"duoplus-go-sdk/cloudnumber"
+	"duoplus-go-sdk/cloudphone"
+	"duoplus-go-sdk/group"
+	"duoplus-go-sdk/internal/clientcore"
+	"duoplus-go-sdk/proxy"
+	"duoplus-go-sdk/subscriptionstartup"
 )
 
 const (
-	DefaultBaseURL     = "https://openapi.duoplus.cn"
-	DefaultIntlBaseURL = "https://openapi.duoplus.net"
-	DefaultLanguage    = "zh"
-	defaultTimeout     = 30 * time.Second
-	defaultMinInterval = time.Second
+	DefaultBaseURL     = clientcore.DefaultBaseURL
+	DefaultIntlBaseURL = clientcore.DefaultIntlBaseURL
+	DefaultLanguage    = clientcore.DefaultLanguage
 )
 
-type Option func(*Client)
+type APIError = clientcore.APIError
 
-type Client struct {
-	apiKey      string
+type config struct {
 	baseURL     string
 	lang        string
 	httpClient  *http.Client
 	minInterval time.Duration
-
-	CloudPhones          *CloudPhoneService
-	CloudNumbers         *CloudNumberService
-	Groups               *GroupService
-	Proxies              *ProxyService
-	SubscriptionStartups *SubscriptionStartupService
-	Apps                 *AppService
-	CloudDisk            *CloudDiskService
-	Automation           *AutomationService
-
-	mu          sync.Mutex
-	nextRequest time.Time
 }
 
-type APIError struct {
-	HTTPStatus int
-	Code       int
-	Message    string
-	Body       string
-}
+type Option func(*config)
 
-func (e *APIError) Error() string {
-	parts := make([]string, 0, 3)
-	if e.HTTPStatus > 0 {
-		parts = append(parts, fmt.Sprintf("http_status=%d", e.HTTPStatus))
-	}
-	if e.Code > 0 {
-		parts = append(parts, fmt.Sprintf("code=%d", e.Code))
-	}
-	if e.Message != "" {
-		parts = append(parts, e.Message)
-	}
-	if len(parts) == 0 && e.Body != "" {
-		parts = append(parts, e.Body)
-	}
-	if len(parts) == 0 {
-		return "duoplus api error"
-	}
-	return "duoplus api error: " + strings.Join(parts, ", ")
-}
+type Client struct {
+	CloudPhones          *cloudphone.Client
+	CloudNumbers         *cloudnumber.Client
+	Groups               *group.Client
+	Proxies              *proxy.Client
+	SubscriptionStartups *subscriptionstartup.Client
+	Apps                 *app.Client
+	CloudDisk            *clouddisk.Client
+	Automation           *automation.Client
 
-type envelope struct {
-	Code    int             `json:"code"`
-	Data    json.RawMessage `json:"data"`
-	Message string          `json:"message"`
+	core *clientcore.Client
 }
 
 func NewClient(apiKey string, opts ...Option) (*Client, error) {
@@ -81,154 +52,68 @@ func NewClient(apiKey string, opts ...Option) (*Client, error) {
 		return nil, errors.New("duoplus api key is required")
 	}
 
-	client := &Client{
-		apiKey:      apiKey,
+	cfg := config{
 		baseURL:     DefaultBaseURL,
 		lang:        DefaultLanguage,
-		httpClient:  &http.Client{Timeout: defaultTimeout},
-		minInterval: defaultMinInterval,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
+		minInterval: time.Second,
 	}
 
 	for _, opt := range opts {
-		opt(client)
+		opt(&cfg)
 	}
 
-	client.initServices()
+	core, err := clientcore.New(apiKey, clientcore.Config{
+		BaseURL:     cfg.baseURL,
+		Lang:        cfg.lang,
+		HTTPClient:  cfg.httpClient,
+		MinInterval: cfg.minInterval,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return client, nil
-}
-
-func (c *Client) initServices() {
-	c.CloudPhones = &CloudPhoneService{client: c}
-	c.CloudNumbers = &CloudNumberService{client: c}
-	c.Groups = &GroupService{client: c}
-	c.Proxies = &ProxyService{client: c}
-	c.SubscriptionStartups = &SubscriptionStartupService{client: c}
-	c.Apps = &AppService{client: c}
-	c.CloudDisk = &CloudDiskService{client: c}
-	c.Automation = &AutomationService{client: c}
+	return &Client{
+		CloudPhones:          cloudphone.New(core),
+		CloudNumbers:         cloudnumber.New(core),
+		Groups:               group.New(core),
+		Proxies:              proxy.New(core),
+		SubscriptionStartups: subscriptionstartup.New(core),
+		Apps:                 app.New(core),
+		CloudDisk:            clouddisk.New(core),
+		Automation:           automation.New(core),
+		core:                 core,
+	}, nil
 }
 
 func WithBaseURL(baseURL string) Option {
-	return func(c *Client) {
+	return func(cfg *config) {
 		if strings.TrimSpace(baseURL) != "" {
-			c.baseURL = strings.TrimRight(baseURL, "/")
+			cfg.baseURL = strings.TrimRight(baseURL, "/")
 		}
 	}
 }
 
 func WithLanguage(lang string) Option {
-	return func(c *Client) {
+	return func(cfg *config) {
 		if strings.TrimSpace(lang) != "" {
-			c.lang = lang
+			cfg.lang = lang
 		}
 	}
 }
 
 func WithHTTPClient(httpClient *http.Client) Option {
-	return func(c *Client) {
+	return func(cfg *config) {
 		if httpClient != nil {
-			c.httpClient = httpClient
+			cfg.httpClient = httpClient
 		}
 	}
 }
 
 func WithMinInterval(interval time.Duration) Option {
-	return func(c *Client) {
+	return func(cfg *config) {
 		if interval > 0 {
-			c.minInterval = interval
+			cfg.minInterval = interval
 		}
-	}
-}
-
-func (c *Client) do(ctx context.Context, path string, requestBody any, out any) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	if err := c.waitTurn(ctx); err != nil {
-		return err
-	}
-
-	payload := []byte("{}")
-	if requestBody != nil {
-		var err error
-		payload, err = json.Marshal(requestBody)
-		if err != nil {
-			return fmt.Errorf("marshal request: %w", err)
-		}
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Lang", c.lang)
-	req.Header.Set("DuoPlus-API-Key", c.apiKey)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	var apiResp envelope
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		if resp.StatusCode >= http.StatusBadRequest {
-			return &APIError{HTTPStatus: resp.StatusCode, Body: string(body)}
-		}
-		return fmt.Errorf("decode response: %w", err)
-	}
-
-	if resp.StatusCode >= http.StatusBadRequest || apiResp.Code != http.StatusOK {
-		return &APIError{
-			HTTPStatus: resp.StatusCode,
-			Code:       apiResp.Code,
-			Message:    apiResp.Message,
-			Body:       string(body),
-		}
-	}
-
-	if out == nil || len(apiResp.Data) == 0 || string(apiResp.Data) == "null" {
-		return nil
-	}
-
-	if err := json.Unmarshal(apiResp.Data, out); err != nil {
-		return fmt.Errorf("decode data: %w", err)
-	}
-
-	return nil
-}
-
-func (c *Client) waitTurn(ctx context.Context) error {
-	c.mu.Lock()
-	now := time.Now()
-	when := c.nextRequest
-	if when.Before(now) {
-		when = now
-	}
-	c.nextRequest = when.Add(c.minInterval)
-	c.mu.Unlock()
-
-	wait := time.Until(when)
-	if wait <= 0 {
-		return nil
-	}
-
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
 	}
 }

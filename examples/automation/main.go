@@ -7,6 +7,8 @@ import (
 	"os"
 
 	duoplus "duoplus-go-sdk"
+	"duoplus-go-sdk/automation"
+	"duoplus-go-sdk/common"
 )
 
 func main() {
@@ -20,8 +22,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	templates, err := client.Automation.ListOfficialTemplates(context.Background(), duoplus.TemplateListRequest{
-		PaginationRequest: duoplus.PaginationRequest{Page: 1, PageSize: 10},
+	templates, err := client.Automation.ListOfficialTemplates(context.Background(), automation.TemplateListRequest{
+		PaginationRequest: common.PaginationRequest{Page: 1, PageSize: 10},
 	})
 	if err != nil {
 		log.Fatal(err)

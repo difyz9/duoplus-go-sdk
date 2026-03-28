@@ -7,6 +7,8 @@ import (
 	"os"
 
 	duoplus "duoplus-go-sdk"
+	"duoplus-go-sdk/cloudphone"
+	"duoplus-go-sdk/common"
 )
 
 func main() {
@@ -20,8 +22,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	resp, err := client.CloudPhones.List(context.Background(), duoplus.CloudPhoneListRequest{
-		PaginationRequest: duoplus.PaginationRequest{Page: 1, PageSize: 10},
+	resp, err := client.CloudPhones.List(context.Background(), cloudphone.ListRequest{
+		PaginationRequest: common.PaginationRequest{Page: 1, PageSize: 10},
 	})
 	if err != nil {
 		log.Fatal(err)

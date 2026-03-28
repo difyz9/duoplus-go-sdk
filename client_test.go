@@ -3,23 +3,25 @@ package duoplus
 import (
 	"encoding/json"
 	"testing"
+
+	"duoplus-go-sdk/common"
 )
 
 func TestTextUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name string
 		data string
-		want Text
+		want common.Text
 	}{
-		{name: "string", data: `"abc"`, want: Text("abc")},
-		{name: "number", data: `12345`, want: Text("12345")},
-		{name: "bool", data: `true`, want: Text("true")},
-		{name: "null", data: `null`, want: Text("")},
+		{name: "string", data: `"abc"`, want: common.Text("abc")},
+		{name: "number", data: `12345`, want: common.Text("12345")},
+		{name: "bool", data: `true`, want: common.Text("true")},
+		{name: "null", data: `null`, want: common.Text("")},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got Text
+			var got common.Text
 			if err := json.Unmarshal([]byte(tt.data), &got); err != nil {
 				t.Fatalf("Unmarshal() error = %v", err)
 			}
